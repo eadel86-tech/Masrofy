@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>محفظتي الذكية | تتبع المصروف الشخصي والميزانية اليومية</title>
+  
+  <!-- ملف التنسيقات الرئيسي -->
+  <link rel="stylesheet" href="css/style.css">
+  
+  <!-- إعدادات تطبيق الموبايل (PWA) -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#4f46e5">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="محفظتي">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👛</text></svg>">
+</head>
+<body>
+
+  <div class="app-container">
+    
+    <!-- رأس الصفحة (Header) -->
+    <header class="header">
+      <div class="brand">
+        <div class="brand-icon">👛</div>
+        <div class="brand-info">
+          <h1>محفظتي الذكية</h1>
+          <p>إدارة وتتبع المصروف الشخصي وحساب الإنفاق اليومي الذكي</p>
+        </div>
+      </div>
+      
+      <div class="header-actions">
+        <button class="btn-setup" onclick="openBudgetModal()" title="تعديل الميزانية ودورة الصرف">
+          <span>⚙️</span>
+          <span>إعداد الميزانية</span>
+        </button>
+
+        <button class="btn-icon" id="themeToggleBtn" title="تبديل الوضع الليلي / الفاتح">
+          🌙
+        </button>
+      </div>
+    </header>
+
+    <!-- البطاقات الإحصائية الرئيسية (Hero / KPI Cards) -->
+    <section class="kpi-grid">
+      
+      <!-- 1. المصروف الشخصي الإجمالي المحدد -->
+      <div class="kpi-card">
+        <div class="kpi-top">
+          <span class="kpi-title">المصروف الشخصي الصافي</span>
+          <span class="kpi-badge badge-primary">الميزانية المعتمدة</span>
+        </div>
+        <div class="kpi-value">
+          <span id="kpiTotalBudget">0</span>
+          <span class="kpi-currency currency-tag">ج.م</span>
+        </div>
+        <div class="kpi-footer">
+          <span id="kpiBudgetSubtext">فترة الميزانية الحالية</span>
+          <span style="cursor: pointer; color: var(--primary);" onclick="openBudgetModal()">تعديل</span>
+        </div>
+      </div>
+
+      <!-- 2. الحد اليومي المقترح لليوم (مع التراكم والترحيل للأيام التي لم تصرف فيها) -->
+      <div class="kpi-card highlight">
+        <div class="kpi-top">
+          <span class="kpi-title">المتاح لك صرفه اليوم</span>
+          <span class="kpi-badge badge-success" id="kpiDailyBadge">شامل التراكم والمرحل</span>
+        </div>
+        <div class="kpi-value" style="color: var(--primary);">
+          <span id="kpiDailyAllowance">0</span>
+          <span class="kpi-currency currency-tag">ج.م</span>
+        </div>
+        <div class="kpi-footer">
+          <span id="kpiDailySubtext">شامل رصيد الأيام السابقة التي لم تصرف فيها</span>
+          <span title="إذا لم تصرف في يوم، يتجمع لك رصيده تلقائياً لتصرفه في أي يوم آخر!">ℹ️ ترحيل تلقائي</span>
+        </div>
+      </div>
+
+      <!-- 3. ما تم صرفه اليوم والمتبقي لليوم -->
+      <div class="kpi-card">
+        <div class="kpi-top">
+          <span class="kpi-title">مصروف اليوم الفعلي</span>
+          <span class="kpi-badge badge-warning">حالة اليوم</span>
+        </div>
+        <div class="kpi-value">
+          <span id="kpiTodaySpent">0</span>
+          <span class="kpi-currency currency-tag">ج.م</span>
+        </div>
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill progress-success" id="todayProgressFill" style="width: 0%;"></div>
+        </div>
+        <div class="kpi-footer" style="margin-top: 8px;">
+          <span id="kpiTodayStatus">متبقي لك اليوم: 0</span>
+        </div>
+      </div>
+
+      <!-- 4. إجمالي الرصيد المتبقي للفترة -->
+      <div class="kpi-card">
+        <div class="kpi-top">
+          <span class="kpi-title">المتبقي في محفظتك</span>
+          <span class="kpi-badge badge-success" id="kpiRemainingBadge">الحالة العامة</span>
+        </div>
+        <div class="kpi-value">
+          <span id="kpiRemainingBudget">0</span>
+          <span class="kpi-currency currency-tag">ج.م</span>
+        </div>
+        <div class="kpi-footer">
+          <span id="kpiRemainingSubtext">إجمالي ما صُرف: 0</span>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- شريط الإرشاد الذكي (Smart Insights) -->
+    <section class="smart-insight-banner">
+      <div class="insight-icon" id="insightIcon">💡</div>
+      <div class="insight-content">
+        <h4 id="insightTitle">جاري تحميل التحليلات الذكية...</h4>
+        <p id="insightDesc">يقوم النظام بحساب استهلاكك ومقارنته بالمعدل اليومي المناسب.</p>
+      </div>
+    </section>
+
+    <!-- القسم الأوسط: تسجيل المصروف + لوحة التحليلات -->
+    <div class="main-content-grid">
+      
+      <!-- العمود الأيمن: نموذج إضافة مصروف جديد -->
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">
+            <span class="card-title-icon">➕</span>
+            <span>تسجيل مصروف جديد</span>
+          </h2>
+        </div>
+
+        <form id="expenseForm">
+          
+          <!-- حقل المبلغ -->
+          <div class="form-group">
+            <label class="form-label" for="expenseAmount">المبلغ المنصرف</label>
+            <div class="amount-input-wrapper">
+              <input type="number" step="any" min="0.1" id="expenseAmount" class="form-input" placeholder="0" required autofocus>
+              <span class="amount-currency currency-tag">ج.م</span>
+            </div>
+            
+            <!-- أزرار سريعة للمبالغ الشائعة -->
+            <div class="quick-amounts">
+              <button type="button" class="btn-quick" data-amount="10">+10</button>
+              <button type="button" class="btn-quick" data-amount="20">+20</button>
+              <button type="button" class="btn-quick" data-amount="50">+50</button>
+              <button type="button" class="btn-quick" data-amount="100">+100</button>
+              <button type="button" class="btn-quick" data-amount="200">+200</button>
+            </div>
+          </div>
+
+          <!-- اختيار التصنيف (ديناميكي مع إمكانية الإضافة والحذف) -->
+          <div class="form-group">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <label class="form-label" style="margin-bottom: 0;">فيما تم الصرف؟ (التصنيف)</label>
+              <button type="button" class="btn-quick" onclick="openCategoriesModal()" style="font-size: 11px; padding: 3px 8px;">
+                ⚙️ تخصيص التصنيفات
+              </button>
+            </div>
+            <div class="category-selector-grid" id="categorySelectorGrid">
+              <!-- يتم توليده وتحديثه ديناميكياً بواسطة JavaScript -->
+            </div>
+          </div>
+
+          <!-- وصف أو ملاحظة -->
+          <div class="form-group">
+            <label class="form-label" for="expenseNote">تفاصيل إضافية / ملاحظة (اختياري)</label>
+            <input type="text" id="expenseNote" class="form-input" placeholder="مثال: غداء مع أصحابي، اشتراك باقة، أوبر...">
+          </div>
+
+          <!-- تاريخ المصروف وأزرار الأيام السريعة لتسجيل المصاريف بأثر رجعي -->
+          <div class="form-group">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <label class="form-label" for="expenseDate" style="margin-bottom: 0;">تاريخ الصرف</label>
+              <span style="font-size: 11px; color: var(--primary); font-weight: 600;">تسجيل بأثر رجعي متاح دائماً</span>
+            </div>
+            <input type="date" id="expenseDate" class="form-input">
+            
+            <!-- أزرار الاختيار السريع للتواريخ السابقة -->
+            <div class="quick-dates-container" style="display: flex; gap: 6px; margin-top: 8px;">
+              <button type="button" class="btn-quick-date active" data-days-ago="0" onclick="setExpenseDateOffset(0)">اليوم</button>
+              <button type="button" class="btn-quick-date" data-days-ago="1" onclick="setExpenseDateOffset(1)">أمس</button>
+              <button type="button" class="btn-quick-date" data-days-ago="2" onclick="setExpenseDateOffset(2)">أول أمس</button>
+              <button type="button" class="btn-quick-date" data-days-ago="3" onclick="setExpenseDateOffset(3)">قبل 3 أيام</button>
+            </div>
+          </div>
+
+          <!-- زر الحفظ -->
+          <button type="submit" class="btn-submit-expense">
+            <span>💾</span>
+            <span>تسجيل وتحديث الحسابات</span>
+          </button>
+        </form>
+
+      </div>
+
+      <!-- العمود الأيسر: لوحة التحليلات والداشبورد (Core Analytics Requirement) -->
+      <div class="charts-wrapper">
+        
+        <!-- كارت الرسم البياني الدائري + قائمة أكثر ما تصرف فيه -->
+        <div class="chart-card">
+          <div class="card-header">
+            <h3 class="card-title">
+              <span class="card-title-icon">📊</span>
+              <span>أين تذهب أموالك؟ (توزيع المصاريف حسب البنود)</span>
+            </h3>
+          </div>
+
+          <div class="donut-layout">
+            <div class="chart-container" style="height: 220px;">
+              <canvas id="categoryDonutChart"></canvas>
+            </div>
+            
+            <!-- قائمة البنود مرتبة تنازلياً من الأكثر استهلاكاً إلى الأقل -->
+            <div>
+              <div style="font-size: 13px; font-weight: 700; margin-bottom: 12px; color: var(--text-secondary);">
+                أكثر البنود استهلاكاً لميزانيتك:
+              </div>
+              <div id="categoryBreakdownList" class="breakdown-list">
+                <!-- يتم تعبئتها ديناميكياً من خلال app.js -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- كارت الإنفاق اليومي مقارنة بالمعدل المستهدف -->
+        <div class="chart-card">
+          <div class="card-header">
+            <h3 class="card-title">
+              <span class="card-title-icon">📈</span>
+              <span>الإنفاق اليومي خلال الأيام الأخيرة</span>
+            </h3>
+            <span style="font-size: 12px; color: var(--text-muted);">مقارنة مع الحد اليومي الموصى به</span>
+          </div>
+
+          <div class="chart-container" style="height: 200px;">
+            <canvas id="dailyTrendChart"></canvas>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- سجل المعاملات (Transactions Log) -->
+    <div class="card transactions-card">
+      <div class="card-header">
+        <h3 class="card-title">
+          <span class="card-title-icon">📝</span>
+          <span>سجل المصاريف المسجلة</span>
+        </h3>
+        
+        <div class="transactions-actions">
+          <button class="btn-secondary" onclick="exportToCSV()" title="تصدير ملف إكسيل للمراجعة">
+            <span>📊</span>
+            <span>تصدير Excel (CSV)</span>
+          </button>
+          <button class="btn-secondary" onclick="exportBackupJSON()" title="حفظ نسخة احتياطية من كل بياناتك">
+            <span>💾</span>
+            <span>نسخة احتياطية</span>
+          </button>
+          <button class="btn-secondary" onclick="importBackupJSON()" title="استعادة نسخة احتياطية محفوظة">
+            <span>📥</span>
+            <span>استعادة</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- أدوات البحث والتصفية -->
+      <div class="transactions-toolbar">
+        <div class="search-filter-box">
+          <input type="text" id="txSearchInput" class="search-input" placeholder="🔍 ابحث في المصاريف أو الملاحظات...">
+          <select id="txFilterCategory" class="filter-select">
+            <option value="all">كل التصنيفات</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- جدول العمليات -->
+      <div class="table-responsive">
+        <table class="tx-table">
+          <thead>
+            <tr>
+              <th>التصنيف</th>
+              <th>المبلغ</th>
+              <th>الملاحظات والتفاصيل</th>
+              <th>التاريخ</th>
+              <th>إجراءات</th>
+            </tr>
+          </thead>
+          <tbody id="transactionsTableBody">
+            <!-- يتم توليد الصفوف عبر JavaScript -->
+          </tbody>
+        </table>
+
+        <!-- حالة فارغة عند عدم وجود بيانات -->
+        <div id="transactionsEmptyState" class="empty-state" style="display: none;">
+          <div class="empty-state-icon">💸</div>
+          <h4>لا توجد مصاريف مطابقة</h4>
+          <p>سجل مصاريفك اليومية باستخدام النموذج أعلاه لتظهر في السجل ولوحة التحليلات.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ==========================================================================
+       نافذة إعداد الميزانية (Budget Setup Modal)
+       ========================================================================== -->
+  <div class="modal-backdrop" id="budgetModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>⚙️ إعداد الميزانية والمصروف الشخصي</h3>
+        <button class="btn-close-modal" onclick="closeBudgetModal()" title="إغلاق">✕</button>
+      </div>
+
+      <form id="budgetForm">
+        
+        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+          أدخل صافي المبلغ المخصص لمصروفك الشخصي (بعد خصم كافة الالتزامات مثل الإيجار، الفواتير الثابتة، والادخار/الاستثمار).
+        </p>
+
+        <!-- حقل المصروف الصافي -->
+        <div class="form-group">
+          <label class="form-label" for="modalBudgetAmount">مبلغ المصروف الشخصي الصافي</label>
+          <div class="amount-input-wrapper">
+            <input type="number" step="any" min="1" id="modalBudgetAmount" class="form-input" placeholder="مثال: 3000" required>
+            <span class="amount-currency currency-tag">ج.م</span>
+          </div>
+          <span style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 4px;">
+            سيتم تقسيم هذا المبلغ لحساب معدل الإنفاق اليومي المسموح به.
+          </span>
+        </div>
+
+        <!-- العملة -->
+        <div class="form-group">
+          <label class="form-label" for="modalCurrency">العملة المستخدمة</label>
+          <select id="modalCurrency" class="form-select">
+            <option value="ج.م">جنيه مصري (ج.م)</option>
+            <option value="ر.س">ريال سعودي (ر.س)</option>
+            <option value="د.إ">درهم إماراتي (د.إ)</option>
+            <option value="$">دولار أمريكي ($)</option>
+            <option value="€">يورو (€)</option>
+            <option value="د.ك">دينار كويتي (د.ك)</option>
+            <option value="د.أ">دينار أردني (د.أ)</option>
+          </select>
+        </div>
+
+        <!-- دورة الميزانية -->
+        <div class="form-group">
+          <label class="form-label" for="modalCycleType">دورة تجديد المصروف</label>
+          <select id="modalCycleType" class="form-select">
+            <option value="monthly">الشهر التقويمي (من يوم 1 إلى آخر الشهر)</option>
+            <option value="salary_day">يوم مخصص في الشهر (يوم نزول الراتب / المصروف)</option>
+          </select>
+        </div>
+
+        <!-- يوم نزول الراتب إن اختار خيار مخصص -->
+        <div class="form-group" id="salaryDayGroup" style="display: none;">
+          <label class="form-label" for="modalSalaryDay">يوم استلام المصروف من كل شهر</label>
+          <input type="number" id="modalSalaryDay" class="form-input" min="1" max="28" value="25" placeholder="مثال: 25">
+          <span style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 4px;">
+            مثال: لو اخترت يوم 25، ستبدأ دورتك كل شهر من يوم 25 وتنتهي يوم 24 من الشهر التالي.
+          </span>
+        </div>
+
+        <button type="submit" class="btn-submit-expense" style="margin-top: 20px;">
+          <span>✓</span>
+          <span>حفظ وتطبيق الميزانية</span>
+        </button>
+
+      </form>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       نافذة تعديل المصروف (Edit Expense Modal)
+       ========================================================================== -->
+  <div class="modal-backdrop" id="editExpenseModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>✏️ تعديل بيانات المصروف</h3>
+        <button class="btn-close-modal" onclick="closeEditModal()" title="إغلاق">✕</button>
+      </div>
+
+      <form id="editExpenseForm">
+        <input type="hidden" id="editExpenseId">
+
+        <div class="form-group">
+          <label class="form-label" for="editExpenseAmount">المبلغ المنصرف</label>
+          <div class="amount-input-wrapper">
+            <input type="number" step="any" min="0.1" id="editExpenseAmount" class="form-input" required>
+            <span class="amount-currency currency-tag">ج.م</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="editExpenseCategory">التصنيف</label>
+          <select id="editExpenseCategory" class="form-select">
+            <!-- يتم تعبئته ديناميكياً -->
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="editExpenseNote">الملاحظات أو التفاصيل</label>
+          <input type="text" id="editExpenseNote" class="form-input" placeholder="تفاصيل المصروف...">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="editExpenseDate">تاريخ الصرف</label>
+          <input type="date" id="editExpenseDate" class="form-input" required>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+          <button type="submit" class="btn-submit-expense" style="flex: 1; margin-top: 0;">
+            <span>💾</span>
+            <span>حفظ التعديلات</span>
+          </button>
+          <button type="button" class="btn-secondary" onclick="closeEditModal()" style="padding: 0 20px;">
+            إلغاء
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       نافذة إدارة وتخصيص التصنيفات (Categories Management Modal)
+       ========================================================================== -->
+  <div class="modal-backdrop" id="categoriesModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>🏷️ إدارة وتخصيص التصنيفات</h3>
+        <button class="btn-close-modal" onclick="closeCategoriesModal()" title="إغلاق">✕</button>
+      </div>
+
+      <!-- نموذج إضافة تصنيف جديد -->
+      <form id="newCategoryForm" style="background: var(--bg-tertiary); padding: 16px; border-radius: var(--radius-md); margin-bottom: 20px;">
+        <h4 style="font-size: 14px; font-weight: 700; margin-bottom: 12px; color: var(--text-primary);">
+          ➕ إضافة تصنيف جديد مخصص
+        </h4>
+
+        <div class="form-group">
+          <label class="form-label" for="newCategoryName">اسم التصنيف</label>
+          <input type="text" id="newCategoryName" class="form-input" placeholder="مثال: فواكه، مكسرات، بنزين، جيم، حلويات..." required>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+          <div>
+            <label class="form-label" for="newCategoryIcon">الأيقونة (إيموجي)</label>
+            <input type="text" id="newCategoryIcon" class="form-input" value="🍎" maxlength="4" style="text-align: center; font-size: 20px;" required>
+          </div>
+          <div>
+            <label class="form-label" for="newCategoryColor">لون التصنيف</label>
+            <input type="color" id="newCategoryColor" class="form-input" value="#10b981" style="height: 44px; padding: 4px; cursor: pointer;">
+          </div>
+        </div>
+
+        <!-- أزرار أيقونات مقترحة -->
+        <div style="margin-bottom: 14px;">
+          <span style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 6px;">أيقونات مقترحة (اضغط للاختيار السريع):</span>
+          <div class="quick-icons-list" style="display: flex; gap: 6px; flex-wrap: wrap;">
+            <button type="button" class="btn-quick-icon" onclick="selectNewCategoryIcon('🍎')">🍎</button>
+            <button type="button" class="btn-quick-icon" onclick="selectNewCategoryIcon('🥜')">🥜</button>
+            <button type="button" class="btn-quick-icon" onclick="selectNewCategoryIcon('🥑')">🥑</button>
+            <button type="button" class="btn-quick-icon" onclick="selectNewCategoryIcon('🥩')">🥩</button>
+            <button type="button" class="btn-quick-icon" onclick="selectNewCategoryIcon('☕')">☕</button>
+            <button type="button" class="btn-quick-icon" onclick="selectNewCategoryIcon('🍫')">🍫</button>
+            <button type="button" class="btn-quick-icon" onclick="selectNewCategoryIcon('🥖')">🥖</button>
+            <button type="button" class="btn-quick-icon" onclick="selectNewCategoryIcon('🚗')">🚗</button>
+            <button type="button" class="btn-quick-icon" onclick="selectNewCategoryIcon('🏋️')">🏋️</button>
+            <button type="button" class="btn-quick-icon" onclick="selectNewCategoryIcon('📚')">📚</button>
+            <button type="button" class="btn-quick-icon" onclick="selectNewCategoryIcon('🎮')">🎮</button>
+            <button type="button" class="btn-quick-icon" onclick="selectNewCategoryIcon('💊')">💊</button>
+            <button type="button" class="btn-quick-icon" onclick="selectNewCategoryIcon('🛍️')">🛍️</button>
+            <button type="button" class="btn-quick-icon" onclick="selectNewCategoryIcon('📱')">📱</button>
+            <button type="button" class="btn-quick-icon" onclick="selectNewCategoryIcon('💡')">💡</button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-submit-expense" style="padding: 10px; font-size: 13px; margin-top: 0;">
+          <span>➕</span>
+          <span>إضافة التصنيف</span>
+        </button>
+      </form>
+
+      <!-- قائمة التصنيفات الحالية -->
+      <h4 style="font-size: 14px; font-weight: 700; margin-bottom: 10px; color: var(--text-primary);">
+        التصنيفات المتاحة حالياً (<span id="categoriesCount">0</span>)
+      </h4>
+      <div id="modalCategoriesList" style="display: flex; flex-direction: column; gap: 8px; max-height: 240px; overflow-y: auto;">
+        <!-- يتم تعبئتها ديناميكياً عبر JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ملفات الجافاسكريبت -->
+  <!-- مكتبة Chart.js محلية لتشغيل الرسوم أوفلاين بدون إنترنت -->
+  <script src="libs/chart.min.js"></script>
+  <!-- سكربت الرسوم البيانية -->
+  <script src="js/charts.js"></script>
+  <!-- منطق التطبيق وحساب الميزانية -->
+  <script src="js/app.js"></script>
+
+  <!-- تفعيل ميزات تطبيق الموبايل والأوفلاين PWA -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(reg => console.log('PWA Service Worker registered:', reg.scope))
+          .catch(err => console.log('PWA Service Worker registration note:', err));
+      });
+    }
+  </script>
+
+</body>
+</html>
