@@ -33,6 +33,12 @@
       </div>
       
       <div class="header-actions">
+        <!-- مؤشر وزر المزامنة السحابية -->
+        <button class="btn-setup" id="syncStatusBtn" onclick="openSyncModal()" title="إعدادات المزامنة السحابية وكود المحفظة">
+          <span id="syncStatusDot" style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#10b981;"></span>
+          <span id="syncStatusText">متزامن سحابياً</span>
+        </button>
+
         <button class="btn-setup" onclick="openBudgetModal()" title="تعديل الميزانية ودورة الصرف">
           <span>⚙️</span>
           <span>إعداد الميزانية</span>
@@ -500,7 +506,54 @@
     </div>
   </div>
 
+  <!-- ==========================================================================
+       نافذة كود المزامنة السحابية (Cloud Sync Modal)
+       ========================================================================== -->
+  <div class="modal-backdrop" id="syncModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>☁️ المزامنة السحابية بين الأجهزة</h3>
+        <button class="btn-close-modal" onclick="closeSyncModal()" title="إغلاق">✕</button>
+      </div>
+
+      <form onsubmit="saveNewSyncKey(event)">
+        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 14px;">
+          اكتب <b>نفس كود المحفظة</b> على أي جهاز آخر (الموبايل أو الكمبيوتر) لتتم المزامنة وتظهر المصاريف على جميع أجهزتك لحظياً.
+        </p>
+
+        <div class="form-group">
+          <label class="form-label" for="syncKeyInput">كود المحفظة (Sync Key)</label>
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="syncKeyInput" class="form-input" style="font-weight: 700; letter-spacing: 1px;" required>
+            <button type="button" class="btn-secondary" onclick="generateNewSyncKey()" title="توليد كود جديد لمحفظة منفصلة">
+              🔄 كود جديد
+            </button>
+          </div>
+          <span style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 6px;">
+            💡 نصيحة: إذا أردت فصل محفظتك عن زوجتك أو أخيك، اجعل كل شخص يستخدم كوداً مختلفاً خاصاً به!
+          </span>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+          <button type="submit" class="btn-submit-expense" style="flex: 1; margin-top: 0;">
+            <span>✓</span>
+            <span>ربط ومزامنة الآن</span>
+          </button>
+          <button type="button" class="btn-secondary" onclick="closeSyncModal()" style="padding: 0 20px;">
+            إلغاء
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- ملفات الجافاسكريبت -->
+  <!-- مكتبة Firebase للمزامنة السحابية اللحظية -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <!-- سكربت المزامنة السحابية -->
+  <script src="js/sync.js"></script>
+
   <!-- مكتبة Chart.js محلية لتشغيل الرسوم أوفلاين بدون إنترنت -->
   <script src="libs/chart.min.js"></script>
   <!-- سكربت الرسوم البيانية -->

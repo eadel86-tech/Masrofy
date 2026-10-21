@@ -1,5 +1,5 @@
 // Service Worker لتشغيل محفظتي الذكية كـ تطبيق موبايل أوفلاين
-const CACHE_NAME = 'smart-wallet-cache-v1';
+const CACHE_NAME = 'smart-wallet-cache-v2';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -7,6 +7,7 @@ const ASSETS_TO_CACHE = [
   './css/style.css',
   './js/app.js',
   './js/charts.js',
+  './js/sync.js',
   './libs/chart.min.js',
   './icons/icon-192.png',
   './icons/icon-512.png',

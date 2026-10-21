@@ -48,6 +48,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   renderAll();
+
+  // تفعيل المزامنة السحابية اللحظية مع Firebase
+  if (typeof initFirebaseSync === 'function') {
+    initFirebaseSync();
+  }
 });
 
 /**
@@ -56,6 +61,9 @@ document.addEventListener('DOMContentLoaded', () => {
 function saveData() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(AppState));
+    if (typeof pushLocalDataToCloud === 'function') {
+      pushLocalDataToCloud();
+    }
   } catch (e) {
     console.error('Error saving data to LocalStorage:', e);
   }
