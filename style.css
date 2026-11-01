@@ -981,29 +981,346 @@ body {
 }
 
 /* ==========================================================================
-   التجاوب مع الشاشات الصغيرة (Responsive Adjustments)
+   التجاوب التام والاحترافي مع شاشات الموبايل (Full Mobile Responsive UI)
    ========================================================================== */
 
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+  width: 100%;
+}
+
 @media (max-width: 768px) {
+  /* الحاوية الرئيسية بأبعاد الموبايل */
   .app-container {
-    padding: 16px 12px 50px 12px;
+    padding: 12px 10px 60px 10px;
+    max-width: 100%;
+    overflow-x: hidden;
   }
   
+  /* رأس الصفحة */
   .header {
     flex-direction: column;
     align-items: stretch;
+    gap: 12px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+  }
+
+  .brand {
+    justify-content: flex-start;
+  }
+
+  .brand-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+  }
+
+  .brand-info h1 {
+    font-size: 18px;
+  }
+
+  .brand-info p {
+    font-size: 11px;
   }
   
+  /* أزرار رأس الصفحة على الموبايل */
   .header-actions {
-    justify-content: space-between;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    width: 100%;
   }
-  
-  .category-selector-grid {
-    grid-template-columns: repeat(2, 1fr);
+
+  .header-actions .btn-setup {
+    flex: 1 1 calc(50% - 6px);
+    padding: 7px 8px;
+    font-size: 11px;
+    justify-content: center;
+    white-space: nowrap;
+    border-radius: var(--radius-sm);
   }
-  
+
+  .header-actions .btn-icon {
+    width: 36px;
+    height: 36px;
+    flex: 0 0 36px;
+  }
+
+  /* بطاقات الإحصائيات (KPIs) عمود واحد متناسق */
+  .kpi-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+
+  .kpi-card {
+    padding: 14px 16px;
+    border-radius: var(--radius-md);
+  }
+
   .kpi-value {
     font-size: 24px;
+    margin: 4px 0;
+  }
+
+  .kpi-footer {
+    font-size: 11px;
+    flex-wrap: wrap;
+    gap: 4px;
+    line-height: 1.4;
+  }
+
+  /* شرائط الإرشاد والتنبيه */
+  .smart-insight-banner {
+    padding: 12px 14px;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .insight-icon {
+    font-size: 22px;
+  }
+
+  .insight-content h4 {
+    font-size: 13px;
+  }
+
+  .insight-content p {
+    font-size: 12px;
+  }
+
+  .archived-month-banner {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+
+  /* قسم نموذج التسجيل والتحليلات */
+  .card {
+    padding: 16px 14px;
+    border-radius: var(--radius-lg);
+  }
+
+  .card-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .card-title {
+    font-size: 15px;
+  }
+
+  /* أزرار العمليات وتصدير الإكسيل */
+  .transactions-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    width: 100%;
+  }
+
+  .transactions-actions .btn-secondary {
+    flex: 1 1 calc(33.3% - 6px);
+    padding: 7px 6px;
+    font-size: 11px;
+    justify-content: center;
+    white-space: nowrap;
+  }
+
+  /* شريط البحث والفلترة */
+  .transactions-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .search-filter-box {
+    flex-direction: column;
+    width: 100%;
+    max-width: 100%;
+    gap: 8px;
+  }
+
+  .search-input, .filter-select {
+    width: 100%;
+    font-size: 12px;
+    padding: 9px 12px;
+  }
+
+  /* أزرار سلايد الشهور أفقياً بسحب ناعم */
+  .month-quick-tabs {
+    width: 100%;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .month-quick-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .btn-month-tab {
+    padding: 5px 10px;
+    font-size: 11px;
+    flex-shrink: 0;
+  }
+
+  .month-summary-bar {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .btn-quick-view-chart {
+    width: 100%;
+    padding: 8px;
+    font-size: 12px;
+  }
+
+  /* تحويل جدول المصاريف إلى كروت موبايل أنيقة تملأ الشاشة تماماً بدون أي سحب جانبي */
+  .table-responsive {
+    overflow-x: visible;
+  }
+
+  .tx-table, 
+  .tx-table thead, 
+  .tx-table tbody, 
+  .tx-table th, 
+  .tx-table td, 
+  .tx-table tr {
+    display: block;
+  }
+  
+  .tx-table thead {
+    display: none; /* إخفاء رؤوس الأعمدة التقليدية */
+  }
+  
+  .tx-table tbody tr {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    margin-bottom: 8px;
+    padding: 10px 12px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  }
+  
+  .tx-table td {
+    padding: 0;
+    border: none;
+  }
+
+  /* التصنيف (يمين في السطر الأول) */
+  .tx-table td:nth-child(1) {
+    order: 1;
+    font-weight: 700;
+  }
+
+  /* المبلغ (يسار في السطر الأول) */
+  .tx-table td:nth-child(2) {
+    order: 2;
+    font-size: 15px;
+    font-weight: 800;
+  }
+
+  /* الملاحظات والتفاصيل (السطر الثاني بعرض كامل) */
+  .tx-table td:nth-child(3) {
+    order: 3;
+    width: 100%;
+    color: var(--text-secondary);
+    font-size: 12px;
+    padding: 2px 0;
+  }
+
+  /* التاريخ (يمين في السطر الثالث) */
+  .tx-table td:nth-child(4) {
+    order: 4;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  /* أزرار التعديل والحذف (يسار في السطر الثالث) */
+  .tx-table td:nth-child(5) {
+    order: 5;
+  }
+  
+  .tx-actions {
+    gap: 8px;
+  }
+
+  .btn-action-edit, .btn-action-delete {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+  }
+
+  /* شبكة اختيار التصنيفات في نموذج الصرف */
+  .category-selector-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+
+  .cat-label {
+    padding: 8px 4px;
+    font-size: 11px;
+  }
+
+  .cat-icon {
+    font-size: 20px;
+  }
+
+  .quick-amounts {
+    gap: 4px;
+  }
+
+  .btn-quick {
+    flex: 1 1 calc(20% - 4px);
+    padding: 6px 4px;
+    text-align: center;
+    font-size: 11px;
+  }
+
+  /* النوافذ المنبثقة (Modals) */
+  .modal-backdrop {
+    padding: 10px;
+  }
+
+  .modal-card {
+    padding: 18px 14px;
+    max-height: 90vh;
+    border-radius: var(--radius-lg);
+  }
+
+  .savings-modal-amount {
+    font-size: 28px;
+  }
+
+  .savings-pending-box {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    text-align: right;
+  }
+
+  .btn-deposit-surplus {
+    width: 100%;
+    text-align: center;
+  }
+
+  .savings-actions-box > div {
+    flex-direction: column;
+    gap: 8px;
   }
 }
 

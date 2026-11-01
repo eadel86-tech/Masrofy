@@ -1,13 +1,13 @@
 // Service Worker لتشغيل محفظتي الذكية كـ تطبيق موبايل أوفلاين مع التحديث التلقائي اللحظي
-const CACHE_NAME = 'smart-wallet-cache-v4';
+const CACHE_NAME = 'smart-wallet-cache-v5';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './manifest.json',
-  './css/style.css?v=3.1',
-  './js/app.js?v=3.1',
-  './js/charts.js?v=3.1',
-  './js/sync.js?v=3.1',
+  './css/style.css?v=3.2',
+  './js/app.js?v=3.2',
+  './js/charts.js?v=3.2',
+  './js/sync.js?v=3.2',
   './libs/chart.min.js',
   './icons/icon-192.png',
   './icons/icon-512.png',
