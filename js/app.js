@@ -27,8 +27,14 @@ const AppState = {
   customDaysCount: 30,
   expenses: [],
   categories: [...DEFAULT_CATEGORIES],
-  theme: 'light'
+  theme: 'light',
+  savings: 0,           // حصالة المدخرات (Saving Pocket)
+  savingsHistory: [],   // سجل إيداعات وسحوبات الحصالة والفوائض
+  archivedMonths: []    // الشهور التي تم ترحيل فوائضها للحصالة
 };
+
+let activeMonthFilter = 'all'; // 'all' أو 'YYYY-MM' (فلتر جدول المصاريف)
+let activeDashboardMonth = null; // null (الدورة الحالية) أو 'YYYY-MM' (أرشيف شهر)
 
 const STORAGE_KEY = 'smart_ewallet_store_v1';
 
@@ -85,6 +91,9 @@ function loadData() {
       if (Array.isArray(data.categories) && data.categories.length > 0) {
         AppState.categories = data.categories;
       }
+      AppState.savings = Number(data.savings) || 0;
+      AppState.savingsHistory = Array.isArray(data.savingsHistory) ? data.savingsHistory : [];
+      AppState.archivedMonths = Array.isArray(data.archivedMonths) ? data.archivedMonths : [];
     }
   } catch (e) {
     console.error('Error loading data:', e);
@@ -199,9 +208,118 @@ function calculateCycleInfo() {
 }
 
 /**
- * الحسابات المالية الدقيقة (شاملة التراكم والترحيل للأيام التي لم يتم الصرف فيها)
+ * دوال مساعدة لحسابات الشهور والأرشيف
  */
-function getBudgetCalculations() {
+function getArabicMonthName(yearMonthStr) {
+  if (!yearMonthStr) return '';
+  const parts = yearMonthStr.split('-');
+  if (parts.length < 2) return yearMonthStr;
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10);
+  const monthNames = [
+    'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+    'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
+  ];
+  return `${monthNames[month - 1]} ${year}`;
+}
+
+function calculateMonthStats(yearMonthStr) {
+  const monthExpenses = AppState.expenses.filter(exp => exp.date && exp.date.startsWith(yearMonthStr));
+  const totalSpent = monthExpenses.reduce((sum, exp) => sum + Number(exp.amount), 0);
+  const remaining = AppState.budget - totalSpent;
+  return {
+    yearMonthStr,
+    monthName: getArabicMonthName(yearMonthStr),
+    monthExpenses,
+    totalSpent,
+    remaining,
+    isSurplus: remaining > 0,
+    surplusAmount: Math.max(0, remaining)
+  };
+}
+
+function getPendingSurplus() {
+  const today = new Date();
+  const currentYM = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+  
+  const monthsWithExpenses = new Set();
+  AppState.expenses.forEach(e => {
+    if (e.date && e.date.length >= 7) {
+      monthsWithExpenses.add(e.date.substring(0, 7));
+    }
+  });
+
+  const archived = AppState.archivedMonths || [];
+
+  for (const mStr of monthsWithExpenses) {
+    if (!archived.includes(mStr)) {
+      const [y, m] = mStr.split('-').map(Number);
+      const lastDayOfMonth = new Date(y, m, 0).getDate();
+      const isPastMonth = mStr < currentYM;
+      const isLastDayOfCurrent = (mStr === currentYM && today.getDate() >= lastDayOfMonth);
+
+      if (isPastMonth || isLastDayOfCurrent) {
+        const stats = calculateMonthStats(mStr);
+        if (stats.isSurplus && stats.surplusAmount > 0) {
+          return stats;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * الحسابات المالية الدقيقة (شاملة التراكم والترحيل للأيام التي لم يتم الصرف فيها)
+ * تدعم أيضاً استعراض أرشيف أي شهر سابق
+ */
+function getBudgetCalculations(targetMonth = null) {
+  const monthToUse = targetMonth || activeDashboardMonth;
+
+  if (monthToUse) {
+    const [y, m] = monthToUse.split('-').map(Number);
+    const startDate = new Date(y, m - 1, 1);
+    const endDate = new Date(y, m, 0);
+    const startDateStr = startDate.toISOString().split('T')[0];
+    const endDateStr = endDate.toISOString().split('T')[0];
+    const totalDays = endDate.getDate();
+
+    const cycleExpenses = AppState.expenses.filter(exp => {
+      return exp.date && exp.date.startsWith(monthToUse);
+    });
+
+    const totalSpent = cycleExpenses.reduce((sum, exp) => sum + Number(exp.amount), 0);
+    const remainingBudget = AppState.budget - totalSpent;
+    const baseDailyAllowance = totalDays > 0 ? (AppState.budget / totalDays) : 0;
+
+    return {
+      isArchivedMonth: true,
+      archivedMonthKey: monthToUse,
+      archivedMonthName: getArabicMonthName(monthToUse),
+      cycle: {
+        startDate,
+        endDate,
+        totalDays,
+        daysPassedToDate: totalDays,
+        remainingDays: 0,
+        startDateStr,
+        endDateStr
+      },
+      totalBudget: AppState.budget,
+      totalSpent,
+      remainingBudget,
+      spentToday: 0,
+      spentBeforeToday: totalSpent,
+      baseDailyAllowance,
+      accumulatedEarnedToDate: AppState.budget,
+      availableTodayWithRollover: 0,
+      rolloverAmount: 0,
+      todayRemaining: 0,
+      smartDailyAllowance: 0,
+      cycleExpenses
+    };
+  }
+
   const cycle = calculateCycleInfo();
   const todayStr = getTodayDateString();
 
@@ -228,11 +346,9 @@ function getBudgetCalculations() {
   const baseDailyAllowance = cycle.totalDays > 0 ? (AppState.budget / cycle.totalDays) : 0;
 
   // 2. الرصيد التراكمي المستحق حتى اليوم (Cumulative Earned Budget)
-  // مثال: إذا كنا في اليوم 3، والمعدل 100 ج.م -> المستحق حتى اليوم = 300 ج.م
   const accumulatedEarnedToDate = cycle.daysPassedToDate * baseDailyAllowance;
 
-  // الرصيد الفعلي المتاح لليوم (المستحق حتى تاريخ اليوم ناقص ما صُرف قبل اليوم)
-  // لو لم يصرف الأحد والإثنين، المستحق 300 وما صُرف قبل اليوم 0 -> المتاح للثلاثاء = 300 ج.م!
+  // الرصيد الفعلي المتاح لليوم
   const availableTodayWithRollover = Math.max(0, accumulatedEarnedToDate - spentBeforeToday);
 
   // مقدار الرصيد المرحّل من الأيام السابقة التي لم يصرف فيها
@@ -241,7 +357,7 @@ function getBudgetCalculations() {
   // المتبقي لليوم بعد خصم ما تم صرفه اليوم
   const todayRemaining = availableTodayWithRollover - spentToday;
 
-  // 3. المعدل اليومي الذكي للمتبقي من الشهر (لتوزيع باقي الميزانية بالتساوي إن رغب)
+  // 3. المعدل اليومي الذكي للمتبقي من الشهر
   const budgetLeftForRemaining = AppState.budget - spentBeforeToday;
   let smartDailyAllowance = 0;
   if (cycle.remainingDays > 0) {
@@ -249,6 +365,7 @@ function getBudgetCalculations() {
   }
 
   return {
+    isArchivedMonth: false,
     cycle,
     totalBudget: AppState.budget,
     totalSpent,
@@ -271,8 +388,10 @@ function getBudgetCalculations() {
 function renderAll() {
   const calc = getBudgetCalculations();
   renderKPIs(calc);
+  renderSavingsCard();
   renderSmartInsight(calc);
   renderCategoryBreakdown(calc);
+  renderMonthFilterOptions();
   renderTransactionsTable();
   renderCharts(calc);
   updateCurrencyDisplay();
@@ -283,6 +402,48 @@ function renderAll() {
  */
 function renderKPIs(calc) {
   const curr = AppState.currency;
+  const banner = document.getElementById('archivedMonthBanner');
+  const bannerTitle = document.getElementById('archivedMonthTitle');
+
+  if (calc.isArchivedMonth) {
+    if (banner) {
+      banner.style.display = 'flex';
+      if (bannerTitle) bannerTitle.textContent = calc.archivedMonthName;
+    }
+
+    document.getElementById('kpiTotalBudget').textContent = formatNumber(calc.totalBudget);
+    document.getElementById('kpiBudgetSubtext').textContent = 
+      `أرشيف شهر ${calc.archivedMonthName} (${calc.cycle.totalDays} يوم)`;
+
+    const kpiDaily = document.getElementById('kpiDailyAllowance');
+    kpiDaily.textContent = '—';
+    const dailyBadge = document.getElementById('kpiDailyBadge');
+    dailyBadge.className = 'kpi-badge badge-primary';
+    dailyBadge.textContent = 'شهر منتهي';
+    document.getElementById('kpiDailySubtext').textContent = `تم إغلاق حسابات هذا الشهر`;
+
+    document.getElementById('kpiTodaySpent').textContent = '—';
+    document.getElementById('kpiTodayStatus').textContent = `المعدل اليومي كان: ${formatNumber(calc.baseDailyAllowance)} ${curr}`;
+    document.getElementById('todayProgressFill').style.width = '100%';
+    document.getElementById('todayProgressFill').className = 'progress-bar-fill progress-success';
+
+    document.getElementById('kpiRemainingBudget').textContent = formatNumber(calc.remainingBudget);
+    const remBadge = document.getElementById('kpiRemainingBadge');
+    if (calc.remainingBudget >= 0) {
+      remBadge.className = 'kpi-badge badge-success';
+      remBadge.textContent = `فائض محقق: +${formatNumber(calc.remainingBudget)} ${curr}`;
+    } else {
+      remBadge.className = 'kpi-badge badge-danger';
+      remBadge.textContent = `عجز: ${formatNumber(calc.remainingBudget)} ${curr}`;
+    }
+    document.getElementById('kpiRemainingSubtext').textContent = `إجمالي ما صُرف: ${formatNumber(calc.totalSpent)} ${curr}`;
+    return;
+  }
+
+  // الحالة الطبيعية للشهر الحالي النشط
+  if (banner) {
+    banner.style.display = 'none';
+  }
 
   // 1. كارت الميزانية الكلية
   document.getElementById('kpiTotalBudget').textContent = formatNumber(calc.totalBudget);
@@ -356,12 +517,67 @@ function renderKPIs(calc) {
 }
 
 /**
+ * تحديث كارت حصالة المدخرات
+ */
+function renderSavingsCard() {
+  const savingsTotalEl = document.getElementById('kpiSavingsTotal');
+  const savingsBadgeEl = document.getElementById('kpiSavingsBadge');
+  const savingsSubtextEl = document.getElementById('kpiSavingsSubtext');
+
+  if (savingsTotalEl) {
+    savingsTotalEl.textContent = formatNumber(AppState.savings || 0);
+  }
+
+  const pending = getPendingSurplus();
+  if (pending) {
+    if (savingsBadgeEl) {
+      savingsBadgeEl.className = 'kpi-badge badge-warning';
+      savingsBadgeEl.textContent = `فائض متاح: +${formatNumber(pending.surplusAmount)}`;
+    }
+    if (savingsSubtextEl) {
+      savingsSubtextEl.textContent = `فائض ${pending.monthName} جاهز للإيداع بالحصالة`;
+    }
+  } else {
+    if (savingsBadgeEl) {
+      savingsBadgeEl.className = 'kpi-badge badge-success';
+      savingsBadgeEl.textContent = `مدخرات آمنة`;
+    }
+    if (savingsSubtextEl) {
+      const historyCount = (AppState.savingsHistory || []).length;
+      savingsSubtextEl.textContent = historyCount > 0 
+        ? `${historyCount} عملية مسجلة بالحصالة` 
+        : `إجمالي ما تم توفيره`;
+    }
+  }
+}
+
+/**
  * صندوق التوجيه والنصيحة الذكية
  */
 function renderSmartInsight(calc) {
   const icon = document.getElementById('insightIcon');
   const title = document.getElementById('insightTitle');
   const desc = document.getElementById('insightDesc');
+
+  if (calc.isArchivedMonth) {
+    icon.textContent = '📊';
+    title.textContent = `تقرير أرشيف شهر ${calc.archivedMonthName}`;
+    if (calc.remainingBudget >= 0) {
+      desc.textContent = `في هذا الشهر تم إنفاق ${formatNumber(calc.totalSpent)} ${AppState.currency} من أصل ميزانية ${formatNumber(calc.totalBudget)} ${AppState.currency}، مع تحقيق فائض توفير ممتاز قدره ${formatNumber(calc.remainingBudget)} ${AppState.currency}!`;
+    } else {
+      desc.textContent = `في هذا الشهر تم إنفاق ${formatNumber(calc.totalSpent)} ${AppState.currency} مع تجاوز في الميزانية قدره ${formatNumber(Math.abs(calc.remainingBudget))} ${AppState.currency}.`;
+    }
+    return;
+  }
+
+  // إذا وجد فائض جاهز للحفظ بالحصالة
+  const pending = getPendingSurplus();
+  if (pending) {
+    icon.textContent = '🎉';
+    title.textContent = `مبروك! لديك فائض ${formatNumber(pending.surplusAmount)} ${AppState.currency} من شهر ${pending.monthName}`;
+    desc.textContent = `انتهى الشهر بنجاح وتوفير ممتاز! اضغط على "حصالة المدخرات 💰" بالأعلى لتأمين هذا الفائض وحفظه كمدخرات شخصية بدلاً من صرفه.`;
+    return;
+  }
 
   if (calc.totalBudget <= 0) {
     icon.textContent = '💡';
@@ -533,12 +749,17 @@ function renderTransactionsTable() {
 
   const searchTerm = (document.getElementById('txSearchInput')?.value || '').trim().toLowerCase();
   const filterCat = document.getElementById('txFilterCategory')?.value || 'all';
+  const filterMonth = activeMonthFilter;
 
   // تصفية المعاملات بترتيب تنازلي (الأحدث أولاً)
   let filtered = [...AppState.expenses].sort((a, b) => {
     if (b.date !== a.date) return b.date.localeCompare(a.date);
     return (b.timestamp || 0) - (a.timestamp || 0);
   });
+
+  if (filterMonth !== 'all') {
+    filtered = filtered.filter(exp => exp.date && exp.date.startsWith(filterMonth));
+  }
 
   if (filterCat !== 'all') {
     filtered = filtered.filter(exp => exp.categoryId === filterCat);
@@ -552,6 +773,34 @@ function renderTransactionsTable() {
       const amount = String(exp.amount);
       return catName.includes(searchTerm) || note.includes(searchTerm) || amount.includes(searchTerm);
     });
+  }
+
+  // تحديث شريط ملخص الشهر المختار
+  const summaryBar = document.getElementById('monthSummaryBar');
+  const summaryText = document.getElementById('monthSummaryText');
+  const btnToggleMonth = document.getElementById('btnToggleMonthAnalytics');
+
+  if (summaryBar && summaryText) {
+    if (filterMonth !== 'all') {
+      summaryBar.style.display = 'flex';
+      const monthTotal = filtered.reduce((sum, exp) => sum + Number(exp.amount), 0);
+      const monthName = getArabicMonthName(filterMonth);
+      summaryText.innerHTML = `📅 مصاريف شهر <strong>${monthName}</strong>: <strong>${formatNumber(monthTotal)} ${AppState.currency}</strong> (عدد العمليات: ${filtered.length})`;
+
+      if (btnToggleMonth) {
+        if (activeDashboardMonth === filterMonth) {
+          btnToggleMonth.textContent = '↩ العودة للداشبورد الحالي';
+          btnToggleMonth.style.background = 'var(--primary)';
+          btnToggleMonth.style.color = '#fff';
+        } else {
+          btnToggleMonth.textContent = `📊 عرض توزيع بنود شهر ${monthName} في الداشبورد`;
+          btnToggleMonth.style.background = 'transparent';
+          btnToggleMonth.style.color = 'var(--primary)';
+        }
+      }
+    } else {
+      summaryBar.style.display = 'none';
+    }
   }
 
   if (filtered.length === 0) {
@@ -594,6 +843,258 @@ function renderTransactionsTable() {
 
   tbody.innerHTML = html;
 }
+
+/**
+ * تحديث خيارات فلتر وأزرار الشهور (Monthly Filter & Tabs)
+ */
+function renderMonthFilterOptions() {
+  const monthSelect = document.getElementById('txFilterMonth');
+  const quickTabsContainer = document.getElementById('monthQuickTabs');
+  if (!monthSelect) return;
+
+  const now = new Date();
+  const currentYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  
+  const monthsSet = new Set();
+  monthsSet.add(currentYM);
+  AppState.expenses.forEach(exp => {
+    if (exp.date && exp.date.length >= 7) {
+      monthsSet.add(exp.date.substring(0, 7));
+    }
+  });
+
+  // ترتيب الشهور تنازلياً (الأحدث أولاً)
+  const sortedMonths = Array.from(monthsSet).sort().reverse();
+
+  // 1. تحديث القائمة المنسدلة
+  const currentVal = activeMonthFilter || 'all';
+  let selectHtml = `<option value="all">📅 كل الشهور (الأرشيف الكامل)</option>`;
+  sortedMonths.forEach(ym => {
+    const isCur = ym === currentYM;
+    const name = getArabicMonthName(ym) + (isCur ? ' (الشهر الحالي)' : '');
+    selectHtml += `<option value="${ym}">${name}</option>`;
+  });
+  monthSelect.innerHTML = selectHtml;
+  monthSelect.value = currentVal;
+
+  // 2. تحديث أزرار السلايد السريعة
+  if (quickTabsContainer) {
+    let tabsHtml = `
+      <button type="button" class="btn-month-tab ${activeMonthFilter === 'all' ? 'active' : ''}" onclick="handleMonthFilterChange('all')">
+        جميع الشهور
+      </button>
+    `;
+    sortedMonths.forEach(ym => {
+      const isCur = ym === currentYM;
+      const isActive = activeMonthFilter === ym;
+      const label = getArabicMonthName(ym) + (isCur ? ' ⭐' : '');
+      tabsHtml += `
+        <button type="button" class="btn-month-tab ${isActive ? 'active' : ''}" onclick="handleMonthFilterChange('${ym}')">
+          ${label}
+        </button>
+      `;
+    });
+    quickTabsContainer.innerHTML = tabsHtml;
+  }
+}
+
+/**
+ * تغيير الشهر المحدد للفلترة
+ */
+window.handleMonthFilterChange = function(ym) {
+  activeMonthFilter = ym;
+  const monthSelect = document.getElementById('txFilterMonth');
+  if (monthSelect) {
+    monthSelect.value = ym;
+  }
+  renderMonthFilterOptions();
+  renderTransactionsTable();
+};
+
+/**
+ * تبديل استعراض توزيع بنود الشهر المحدد في الداشبورد
+ */
+window.toggleMonthAnalyticsView = function() {
+  if (activeMonthFilter === 'all') return;
+  
+  if (activeDashboardMonth === activeMonthFilter) {
+    activeDashboardMonth = null;
+    showToast('تمت العودة للوحة تحليلات الشهر الحالي', 'info');
+  } else {
+    activeDashboardMonth = activeMonthFilter;
+    showToast(`تم تفعيل تحليلات وتوزيع بنود شهر: ${getArabicMonthName(activeMonthFilter)} في الداشبورد`, 'success');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  renderAll();
+};
+
+window.resetToCurrentMonthView = function() {
+  activeDashboardMonth = null;
+  renderAll();
+  showToast('تمت العودة للوحة تحليلات الشهر الحالي', 'info');
+};
+
+/**
+ * نوافذ وإجراءات حصالة المدخرات (Savings Pocket)
+ */
+window.openSavingsModal = function() {
+  const modal = document.getElementById('savingsModal');
+  if (modal) {
+    renderSavingsModal();
+    modal.classList.add('active');
+  }
+};
+
+window.closeSavingsModal = function() {
+  const modal = document.getElementById('savingsModal');
+  if (modal) {
+    modal.classList.remove('active');
+  }
+};
+
+function renderSavingsModal() {
+  const modalTotal = document.getElementById('savingsModalTotal');
+  if (modalTotal) {
+    modalTotal.textContent = formatNumber(AppState.savings || 0);
+  }
+
+  const pending = getPendingSurplus();
+  const pendingBox = document.getElementById('savingsPendingSurplusBox');
+  const pendingTitle = document.getElementById('savingsPendingTitle');
+
+  if (pending && pending.surplusAmount > 0) {
+    if (pendingBox) pendingBox.style.display = 'flex';
+    if (pendingTitle) pendingTitle.textContent = `فائض شهر ${pending.monthName}: ${formatNumber(pending.surplusAmount)} ${AppState.currency}`;
+  } else {
+    if (pendingBox) pendingBox.style.display = 'none';
+  }
+
+  // عرض سجل الحصالة
+  const historyList = document.getElementById('savingsHistoryList');
+  const historyCount = document.getElementById('savingsHistoryCount');
+  const history = AppState.savingsHistory || [];
+
+  if (historyCount) historyCount.textContent = history.length;
+  if (!historyList) return;
+
+  if (history.length === 0) {
+    historyList.innerHTML = `
+      <div style="text-align: center; color: var(--text-muted); padding: 14px 0; font-size: 12px;">
+        لا توجد حركات مسجلة في الحصالة حتى الآن.
+      </div>
+    `;
+    return;
+  }
+
+  let html = '';
+  history.forEach(item => {
+    const isPositive = Number(item.amount) >= 0;
+    const sign = isPositive ? '+' : '';
+    const color = isPositive ? '#10b981' : '#ef4444';
+    const icon = item.type === 'surplus' ? '🏆' : (isPositive ? '📥' : '📤');
+
+    html += `
+      <div class="savings-history-item">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span>${icon}</span>
+          <div>
+            <div style="font-weight: 600; color: var(--text-primary); font-size: 13px;">${escapeHtml(item.note || 'عملية حصالة')}</div>
+            <div style="font-size: 11px; color: var(--text-muted);">${formatDisplayDate(item.date)}</div>
+          </div>
+        </div>
+        <div style="font-weight: 700; color: ${color}; font-size: 14px;">
+          ${sign}${formatNumber(item.amount)} ${AppState.currency}
+        </div>
+      </div>
+    `;
+  });
+
+  historyList.innerHTML = html;
+}
+
+/**
+ * إيداع فائض الشهر المنتهي في حصالة المدخرات
+ */
+window.depositPendingSurplus = function() {
+  const pending = getPendingSurplus();
+  if (!pending || pending.surplusAmount <= 0) {
+    showToast('لا يوجد فائض معلق للإيداع حالياً', 'info');
+    return;
+  }
+
+  AppState.savings = (AppState.savings || 0) + pending.surplusAmount;
+  AppState.savingsHistory = AppState.savingsHistory || [];
+  AppState.savingsHistory.unshift({
+    id: 'sav_' + Date.now(),
+    date: getTodayDateString(),
+    month: pending.yearMonthStr,
+    monthName: pending.monthName,
+    amount: pending.surplusAmount,
+    type: 'surplus',
+    note: `فائض ميزانية شهر ${pending.monthName}`
+  });
+
+  AppState.archivedMonths = AppState.archivedMonths || [];
+  if (!AppState.archivedMonths.includes(pending.yearMonthStr)) {
+    AppState.archivedMonths.push(pending.yearMonthStr);
+  }
+
+  saveData();
+  renderAll();
+  renderSavingsModal();
+  showToast(`🎉 تم حفظ فائض ${pending.monthName} (${formatNumber(pending.surplusAmount)} ${AppState.currency}) في حصالة التوفير بنجاح!`, 'success');
+};
+
+/**
+ * إيداع أو سحب يدوي من الحصالة
+ */
+window.handleManualSavings = function(action) {
+  const amtInput = document.getElementById('manualSavingsAmount');
+  const noteInput = document.getElementById('manualSavingsNote');
+  const amt = parseFloat(amtInput?.value);
+  const note = (noteInput?.value || '').trim();
+
+  if (isNaN(amt) || amt <= 0) {
+    showToast('يرجى إدخال مبلغ صحيح أكبر من صفر', 'warning');
+    amtInput?.focus();
+    return;
+  }
+
+  AppState.savings = AppState.savings || 0;
+  AppState.savingsHistory = AppState.savingsHistory || [];
+
+  if (action === 'withdraw') {
+    if (amt > AppState.savings) {
+      showToast('المبلغ المطلوب سحبه أكبر من رصيد الحصالة الحالي!', 'warning');
+      return;
+    }
+    AppState.savings -= amt;
+    AppState.savingsHistory.unshift({
+      id: 'sav_' + Date.now(),
+      date: getTodayDateString(),
+      amount: -amt,
+      type: 'withdraw',
+      note: note || 'سحب يدوي من الحصالة'
+    });
+    showToast(`تم سحب ${formatNumber(amt)} ${AppState.currency} من الحصالة`, 'info');
+  } else {
+    AppState.savings += amt;
+    AppState.savingsHistory.unshift({
+      id: 'sav_' + Date.now(),
+      date: getTodayDateString(),
+      amount: amt,
+      type: 'deposit',
+      note: note || 'إيداع يدوي في الحصالة'
+    });
+    showToast(`تم إيداع ${formatNumber(amt)} ${AppState.currency} في الحصالة بنجاح`, 'success');
+  }
+
+  amtInput.value = '';
+  if (noteInput) noteInput.value = '';
+  saveData();
+  renderAll();
+  renderSavingsModal();
+};
 
 /**
  * إضافة مصروف جديد (يدعم اليوم وأي تاريخ سابق بأثر رجعي)
@@ -807,6 +1308,7 @@ function setTheme(theme) {
 
 /**
  * تصدير البيانات كملف Excel (CSV) بترميز UTF-8 مع BOM لدعم اللغة العربية
+ * يدعم تصدير الشهر المختار في الفلتر أو كامل الأرشيف
  */
 window.exportToCSV = function() {
   if (AppState.expenses.length === 0) {
@@ -814,10 +1316,25 @@ window.exportToCSV = function() {
     return;
   }
 
+  const filterMonth = activeMonthFilter;
+  let expensesToExport = AppState.expenses;
+  let fileName = `مصاريفي_${getTodayDateString()}.csv`;
+
+  if (filterMonth !== 'all') {
+    expensesToExport = AppState.expenses.filter(e => e.date && e.date.startsWith(filterMonth));
+    const mName = getArabicMonthName(filterMonth).replace(/\s+/g, '_');
+    fileName = `مصاريف_${mName}.csv`;
+  }
+
+  if (expensesToExport.length === 0) {
+    showToast('لا توجد مصاريف في هذا الشهر لتصديرها', 'warning');
+    return;
+  }
+
   let csvContent = '\uFEFF';
   csvContent += 'التاريخ,التصنيف,المبلغ,العملة,الملاحظات\n';
 
-  AppState.expenses.forEach(exp => {
+  expensesToExport.forEach(exp => {
     const cat = AppState.categories.find(c => c.id === exp.categoryId) || { name: 'أخرى' };
     const note = `"${(exp.note || '').replace(/"/g, '""')}"`;
     csvContent += `${exp.date},${cat.name},${exp.amount},${AppState.currency},${note}\n`;
@@ -827,12 +1344,12 @@ window.exportToCSV = function() {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.setAttribute('href', url);
-  link.setAttribute('download', `مصاريفي_${getTodayDateString()}.csv`);
+  link.setAttribute('download', fileName);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
 
-  showToast('تم تصدير ملف الإكسيل بنجاح', 'success');
+  showToast(`تم تصدير ملف الإكسيل (${fileName}) بنجاح`, 'success');
 };
 
 /**
@@ -868,6 +1385,15 @@ window.importBackupJSON = function() {
           AppState.expenses = imported.expenses;
           if (Array.isArray(imported.categories)) {
             AppState.categories = imported.categories;
+          }
+          if (typeof imported.savings !== 'undefined') {
+            AppState.savings = imported.savings;
+          }
+          if (Array.isArray(imported.savingsHistory)) {
+            AppState.savingsHistory = imported.savingsHistory;
+          }
+          if (Array.isArray(imported.archivedMonths)) {
+            AppState.archivedMonths = imported.archivedMonths;
           }
           saveData();
           renderAll();
@@ -1114,9 +1640,12 @@ function setupEventListeners() {
     });
   });
 
-  // البحث والفلترة
+  // البحث والفلترة والأرشيف الشهري
   document.getElementById('txSearchInput')?.addEventListener('input', renderTransactionsTable);
   document.getElementById('txFilterCategory')?.addEventListener('change', renderTransactionsTable);
+  document.getElementById('txFilterMonth')?.addEventListener('change', (e) => {
+    handleMonthFilterChange(e.target.value);
+  });
 
   // زر تغيير الثيم
   document.getElementById('themeToggleBtn')?.addEventListener('click', toggleTheme);
@@ -1137,6 +1666,12 @@ function setupEventListeners() {
   document.getElementById('categoriesModal')?.addEventListener('click', (e) => {
     if (e.target.id === 'categoriesModal') {
       closeCategoriesModal();
+    }
+  });
+
+  document.getElementById('savingsModal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'savingsModal') {
+      closeSavingsModal();
     }
   });
 }

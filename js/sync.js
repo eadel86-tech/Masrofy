@@ -125,6 +125,9 @@ function applyRemoteData(remote) {
     if (Array.isArray(remote.categories) && remote.categories.length > 0) {
       AppState.categories = remote.categories;
     }
+    if (typeof remote.savings !== 'undefined') AppState.savings = Number(remote.savings) || 0;
+    if (Array.isArray(remote.savingsHistory)) AppState.savingsHistory = remote.savingsHistory;
+    if (Array.isArray(remote.archivedMonths)) AppState.archivedMonths = remote.archivedMonths;
 
     // حفظ في الذاكرة المحلية للجهاز
     saveData();
@@ -158,6 +161,9 @@ function pushLocalDataToCloud() {
     customDaysCount: AppState.customDaysCount || 30,
     expenses: AppState.expenses || [],
     categories: AppState.categories || [],
+    savings: AppState.savings || 0,
+    savingsHistory: AppState.savingsHistory || [],
+    archivedMonths: AppState.archivedMonths || [],
     lastUpdated: Date.now()
   };
 

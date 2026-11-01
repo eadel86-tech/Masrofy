@@ -6,7 +6,7 @@
   <title>محفظتي الذكية | تتبع المصروف الشخصي والميزانية اليومية</title>
   
   <!-- ملف التنسيقات الرئيسي -->
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=3.1">
   
   <!-- إعدادات تطبيق الموبايل (PWA) -->
   <link rel="manifest" href="manifest.json">
@@ -39,6 +39,11 @@
           <span id="syncStatusText">متزامن سحابياً</span>
         </button>
 
+        <button class="btn-setup" onclick="openSavingsModal()" title="حصالة المدخرات والفوائض الشهرية">
+          <span>💰</span>
+          <span>حصالة التوفير</span>
+        </button>
+
         <button class="btn-setup" onclick="openBudgetModal()" title="تعديل الميزانية ودورة الصرف">
           <span>⚙️</span>
           <span>إعداد الميزانية</span>
@@ -49,6 +54,17 @@
         </button>
       </div>
     </header>
+
+    <!-- شريط تنبيه استعراض شهر سابق -->
+    <div id="archivedMonthBanner" class="archived-month-banner" style="display: none;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="font-size: 20px;">📅</span>
+        <span>أنت تستعرض حالياً إحصائيات وتوزيع بنود شهر: <strong><span id="archivedMonthTitle">أكتوبر 2026</span></strong></span>
+      </div>
+      <button type="button" class="btn-secondary" onclick="resetToCurrentMonthView()" style="background: var(--bg-card); font-size: 12px; padding: 4px 12px;">
+        العودة للشهر الحالي ↩
+      </button>
+    </div>
 
     <!-- البطاقات الإحصائية الرئيسية (Hero / KPI Cards) -->
     <section class="kpi-grid">
@@ -115,6 +131,22 @@
         </div>
         <div class="kpi-footer">
           <span id="kpiRemainingSubtext">إجمالي ما صُرف: 0</span>
+        </div>
+      </div>
+
+      <!-- 5. حصالة التوفير والمدخرات (Savings Pocket) -->
+      <div class="kpi-card savings-card" onclick="openSavingsModal()" style="cursor: pointer;" title="اضغط لعرض تفاصيل حصالة التوفير وإدارتها">
+        <div class="kpi-top">
+          <span class="kpi-title">حصالة المدخرات 💰</span>
+          <span class="kpi-badge badge-success" id="kpiSavingsBadge">مدخرات آمنة</span>
+        </div>
+        <div class="kpi-value" style="color: #10b981;">
+          <span id="kpiSavingsTotal">0</span>
+          <span class="kpi-currency currency-tag">ج.م</span>
+        </div>
+        <div class="kpi-footer">
+          <span id="kpiSavingsSubtext">إجمالي الفوائض المحفوظة</span>
+          <span style="color: #10b981; font-weight: 700;">فتح الحصالة ↗</span>
         </div>
       </div>
 
@@ -278,13 +310,33 @@
         </div>
       </div>
 
-      <!-- أدوات البحث والتصفية -->
+      <!-- أدوات البحث والتصفية والأرشيف الشهري -->
       <div class="transactions-toolbar">
         <div class="search-filter-box">
           <input type="text" id="txSearchInput" class="search-input" placeholder="🔍 ابحث في المصاريف أو الملاحظات...">
           <select id="txFilterCategory" class="filter-select">
             <option value="all">كل التصنيفات</option>
           </select>
+          <select id="txFilterMonth" class="filter-select" title="اختر الشهر لتصفية المصاريف">
+            <option value="all">📅 كل الشهور (الأرشيف الكامل)</option>
+          </select>
+        </div>
+
+        <!-- أزرار اختيار الشهور السريعة (سلايد الشهور) -->
+        <div id="monthQuickTabs" class="month-quick-tabs">
+          <!-- يتم توليدها ديناميكياً بواسطة JavaScript -->
+        </div>
+      </div>
+
+      <!-- شريط معلومات وتلخيص الشهر المختار -->
+      <div id="monthSummaryBar" class="month-summary-bar" style="display: none;">
+        <div class="month-summary-text" id="monthSummaryText">
+          📅 مصاريف الشهر: <strong>0 ج.م</strong>
+        </div>
+        <div class="month-summary-actions">
+          <button type="button" class="btn-quick-view-chart" id="btnToggleMonthAnalytics" onclick="toggleMonthAnalyticsView()">
+            📊 عرض توزيع بنود هذا الشهر في الداشبورد
+          </button>
         </div>
       </div>
 
@@ -547,27 +599,115 @@
     </div>
   </div>
 
+  <!-- ==========================================================================
+       نافذة حصالة المدخرات والتوفير (Savings Pocket Modal)
+       ========================================================================== -->
+  <div class="modal-backdrop" id="savingsModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>💰 حصالة المدخرات (Saving Pocket)</h3>
+        <button class="btn-close-modal" onclick="closeSavingsModal()" title="إغلاق">✕</button>
+      </div>
+
+      <div class="savings-modal-hero">
+        <span class="savings-modal-label">إجمالي المدخرات المحفوظة</span>
+        <div class="savings-modal-amount">
+          <span id="savingsModalTotal">0</span>
+          <span class="currency-tag">ج.م</span>
+        </div>
+        <p class="savings-modal-desc">
+          هذا المبلغ محفوظ بأمان كمدخرات شخصية ناتجة عن الفوائض الشهرية، ولا يتم صرفه مع الميزانية الشهرية.
+        </p>
+      </div>
+
+      <!-- تنبيه/اقتراح إيداع فائض الشهر المنتهي إذا وُجد -->
+      <div id="savingsPendingSurplusBox" class="savings-pending-box" style="display: none;">
+        <div class="savings-pending-info">
+          <span class="savings-pending-badge">🎉 فائض متاح للإيداع</span>
+          <div class="savings-pending-title" id="savingsPendingTitle">فائض شهر أكتوبر: 2,138 ج.م</div>
+          <p style="font-size: 12px; color: var(--text-secondary); margin: 4px 0 0;">
+            هل ترغب في تحويل وتأمين هذا الفائض في حصالتك الآن؟
+          </p>
+        </div>
+        <button type="button" class="btn-deposit-surplus" id="btnDepositSurplus" onclick="depositPendingSurplus()">
+          🔒 حفظ في الحصالة
+        </button>
+      </div>
+
+      <!-- إيداع أو سحب يدوي -->
+      <div class="savings-actions-box">
+        <h4 style="font-size: 13px; font-weight: 700; margin-bottom: 8px; color: var(--text-primary);">
+          إيداع أو سحب يدوي:
+        </h4>
+        <div style="display: flex; gap: 8px;">
+          <input type="number" id="manualSavingsAmount" class="form-input" placeholder="المبلغ (ج.م)" min="1" step="any" style="flex: 1;">
+          <input type="text" id="manualSavingsNote" class="form-input" placeholder="سبب العملية (اختياري)" style="flex: 1.2;">
+          <button type="button" class="btn-secondary" onclick="handleManualSavings('deposit')" style="color: #10b981; font-weight: 700;">
+            ➕ إيداع
+          </button>
+          <button type="button" class="btn-secondary" onclick="handleManualSavings('withdraw')" style="color: #ef4444; font-weight: 700;">
+            ➖ سحب
+          </button>
+        </div>
+      </div>
+
+      <!-- سجل عمليات الحصالة والفوائض -->
+      <div style="margin-top: 14px;">
+        <h4 style="font-size: 13px; font-weight: 700; margin-bottom: 10px; color: var(--text-primary);">
+          سجل الحصالة والفوائض (<span id="savingsHistoryCount">0</span>)
+        </h4>
+        <div id="savingsHistoryList" style="display: flex; flex-direction: column; gap: 8px; max-height: 180px; overflow-y: auto;">
+          <!-- تعبئة ديناميكية -->
+        </div>
+      </div>
+
+      <div style="margin-top: 18px; text-align: left;">
+        <button type="button" class="btn-secondary" onclick="closeSavingsModal()" style="padding: 0 20px;">
+          إغلاق
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- ملفات الجافاسكريبت -->
   <!-- مكتبة Firebase للمزامنة السحابية اللحظية -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
   <!-- سكربت المزامنة السحابية -->
-  <script src="js/sync.js"></script>
+  <script src="js/sync.js?v=3.1"></script>
 
   <!-- مكتبة Chart.js محلية لتشغيل الرسوم أوفلاين بدون إنترنت -->
   <script src="libs/chart.min.js"></script>
   <!-- سكربت الرسوم البيانية -->
-  <script src="js/charts.js"></script>
+  <script src="js/charts.js?v=3.1"></script>
   <!-- منطق التطبيق وحساب الميزانية -->
-  <script src="js/app.js"></script>
+  <script src="js/app.js?v=3.1"></script>
 
-  <!-- تفعيل ميزات تطبيق الموبايل والأوفلاين PWA -->
+  <!-- تفعيل ميزات تطبيق الموبايل والأوفلاين PWA والتحديث التلقائي -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js')
-          .then(reg => console.log('PWA Service Worker registered:', reg.scope))
-          .catch(err => console.log('PWA Service Worker registration note:', err));
+          .then(reg => {
+            reg.update();
+            reg.onupdatefound = () => {
+              const installingWorker = reg.installing;
+              installingWorker.onstatechange = () => {
+                if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  window.location.reload();
+                }
+              };
+            };
+          })
+          .catch(err => console.log('PWA Service Worker note:', err));
+      });
+
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!refreshing) {
+          refreshing = true;
+          window.location.reload();
+        }
       });
     }
   </script>

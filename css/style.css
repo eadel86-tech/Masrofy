@@ -1006,3 +1006,209 @@ body {
     font-size: 24px;
   }
 }
+
+/* ==========================================================================
+   حصالة المدخرات والأرشيف الشهري (Savings Pocket & Monthly Archive)
+   ========================================================================== */
+
+/* كارت حصالة المدخرات في الـ KPIs */
+.kpi-card.savings-card {
+  border: 2px solid #10b981;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(5, 150, 105, 0.03) 100%);
+  position: relative;
+}
+
+.kpi-card.savings-card:hover {
+  border-color: #059669;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.18);
+}
+
+/* شريط استعراض شهر سابق */
+.archived-month-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 18px;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(217, 119, 6, 0.08) 100%);
+  border: 1px solid #f59e0b;
+  border-radius: var(--radius-lg);
+  margin-bottom: 20px;
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+/* أدوات التصفية والشهور السريعة */
+.month-quick-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.btn-month-tab {
+  padding: 6px 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-full);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+  white-space: nowrap;
+}
+
+.btn-month-tab:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--bg-tertiary);
+}
+
+.btn-month-tab.active {
+  background: var(--primary);
+  color: #ffffff;
+  border-color: var(--primary);
+  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.3);
+}
+
+/* شريط ملخص الشهر */
+.month-summary-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  background: var(--bg-secondary);
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  margin-bottom: 16px;
+}
+
+.month-summary-text {
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.btn-quick-view-chart {
+  background: transparent;
+  border: 1px solid var(--primary);
+  color: var(--primary);
+  padding: 5px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.btn-quick-view-chart:hover {
+  background: var(--primary);
+  color: #ffffff;
+}
+
+/* نافذة حصالة التوفير (Savings Modal) */
+.savings-modal-hero {
+  text-align: center;
+  padding: 22px 16px;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(5, 150, 105, 0.04) 100%);
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  margin-bottom: 16px;
+}
+
+.savings-modal-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.savings-modal-amount {
+  font-size: 36px;
+  font-weight: 800;
+  color: #10b981;
+  margin: 6px 0;
+  font-family: inherit;
+}
+
+.savings-modal-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  max-width: 400px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+.savings-pending-box {
+  background: #ecfdf5;
+  border: 1.5px dashed #10b981;
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+[data-theme="dark"] .savings-pending-box {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: #10b981;
+}
+
+.savings-pending-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: #059669;
+  background: rgba(16, 185, 129, 0.2);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+}
+
+.savings-pending-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-top: 4px;
+}
+
+.btn-deposit-surplus {
+  background: #10b981;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: var(--transition);
+}
+
+.btn-deposit-surplus:hover {
+  background: #059669;
+  transform: scale(1.02);
+}
+
+.savings-actions-box {
+  background: var(--bg-secondary);
+  padding: 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  margin-bottom: 14px;
+}
+
+.savings-history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  border: 1px solid var(--border-color);
+}
+
