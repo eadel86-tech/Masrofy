@@ -1,10 +1,11 @@
 // Service Worker لتشغيل محفظتي الذكية كـ تطبيق موبايل أوفلاين مع التحديث التلقائي اللحظي
-const CACHE_NAME = 'smart-wallet-cache-v5';
+const CACHE_NAME = 'smart-wallet-cache-v7';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './manifest.json',
-  './css/style.css?v=3.2',
+  './style.css?v=3.5',
+  './css/style.css?v=3.5',
   './js/app.js?v=3.2',
   './js/charts.js?v=3.2',
   './js/sync.js?v=3.2',
@@ -18,8 +19,14 @@ const ASSETS_TO_CACHE = [
 self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
+    caches.open(CACHE_NAME).then(async (cache) => {
+      for (const asset of ASSETS_TO_CACHE) {
+        try {
+          await cache.add(asset);
+        } catch (e) {
+          // تجاوز أي ملف اختياري غير موجود بدون إيقاف التثبيت
+        }
+      }
     })
   );
 });

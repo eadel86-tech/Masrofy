@@ -5,8 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>محفظتي الذكية | تتبع المصروف الشخصي والميزانية اليومية</title>
   
-  <!-- ملف التنسيقات الرئيسي -->
-  <link rel="stylesheet" href="css/style.css?v=3.2">
+  <!-- ملف التنسيقات الرئيسي (يعمل سواء كان في المجلد الرئيسي أو داخل css) -->
+  <link rel="stylesheet" href="style.css?v=3.5">
+  <link rel="stylesheet" href="css/style.css?v=3.5">
   
   <!-- إعدادات تطبيق الموبايل (PWA) -->
   <link rel="manifest" href="manifest.json">
@@ -221,7 +222,7 @@
             <input type="date" id="expenseDate" class="form-input">
             
             <!-- أزرار الاختيار السريع للتواريخ السابقة -->
-            <div class="quick-dates-container" style="display: flex; gap: 6px; margin-top: 8px;">
+            <div class="quick-dates-container" style="display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap;">
               <button type="button" class="btn-quick-date active" data-days-ago="0" onclick="setExpenseDateOffset(0)">اليوم</button>
               <button type="button" class="btn-quick-date" data-days-ago="1" onclick="setExpenseDateOffset(1)">أمس</button>
               <button type="button" class="btn-quick-date" data-days-ago="2" onclick="setExpenseDateOffset(2)">أول أمس</button>
